@@ -72,6 +72,7 @@ def build_features(df: pd.DataFrame, target_col: str ="Churn") -> pd.DataFrame:
     # === STEP 3: Apply Binary Encoding ===
     # Convert 2-category features to 0/1 using deterministic mappings
     for c in binary_cols:
+        original_dtype = df[c].dtype
         df[c] = _map_binary_series(df[c].astype(str))
         print(f"      ✅ {c}: {original_dtype} → binary (0/1)")
 
