@@ -26,7 +26,7 @@ def tune_model(X,y) :
         return scores.mean()
     
     study = optuna.create_study()
-    study.optimize(objective, n_trials=20)
+    study.optimize(objective, n_trials=40)
 
     print("Best Params: ", study.best_params)
     return study.best_params
