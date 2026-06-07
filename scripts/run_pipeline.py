@@ -7,6 +7,7 @@ import os
 import sys
 import time
 import argparse
+import shutil
 import pandas as pd
 import mlflow
 import mlflow.sklearn
@@ -98,16 +99,20 @@ def main(args):
         import json, joblib
         artifacts_dir = os.path.join(project_root, "artifacts")
         os.makedirs(artifacts_dir, exist_ok=True)
+        serving_model_dir = os.path.join(project_root, "src", "serving", "model")
 
         # Get feature columns (exclude target)
         feature_cols = list(df_enc.drop(columns=[target]).columns)
+        feature_columns_path = os.path.join(artifacts_dir, "feature_columns.txt")
         
         # Save locally for development serving
         with open(os.path.join(artifacts_dir, "feature_columns.json"), "w") as f:
             json.dump(feature_cols, f)
+        with open(feature_columns_path, "w") as f:
+            f.write("\n".join(feature_cols))
 
-        # Log to MLflow for production serving
-        mlflow.log_text("\n".join(feature_cols), artifact_file="feature_columns.txt")
+        # Log serving metadata under the same MLflow model artifact folder.
+        mlflow.log_artifact(feature_columns_path, artifact_path="model")
 
         # ESSENTIAL: Save preprocessing artifacts for serving pipeline
         # These artifacts ensure training and serving use identical transformations
@@ -115,8 +120,9 @@ def main(args):
             "feature_columns": feature_cols,  # Exact feature order
             "target": target                  # Target column name
         }
-        joblib.dump(preprocessing_artifact, os.path.join(artifacts_dir, "preprocessing.pkl"))
-        mlflow.log_artifact(os.path.join(artifacts_dir, "preprocessing.pkl"))
+        preprocessing_path = os.path.join(artifacts_dir, "preprocessing.pkl")
+        joblib.dump(preprocessing_artifact, preprocessing_path)
+        mlflow.log_artifact(preprocessing_path, artifact_path="model")
         print(f"✅ Saved {len(feature_cols)} feature columns for serving consistency")
 
         # === STAGE 4: Train/Test Split ===
@@ -207,7 +213,17 @@ def main(args):
             model, 
             artifact_path="model"  # This creates a 'model/' folder in MLflow run artifacts
         )
+
+        # Also export a local bundle for the FastAPI/Gradio server.
+        if os.path.exists(serving_model_dir):
+            shutil.rmtree(serving_model_dir)
+        os.makedirs(serving_model_dir, exist_ok=True)
+        mlflow.sklearn.save_model(model, serving_model_dir)
+        shutil.copy2(feature_columns_path, os.path.join(serving_model_dir, "feature_columns.txt"))
+        shutil.copy2(preprocessing_path, os.path.join(serving_model_dir, "preprocessing.pkl"))
+        shutil.copy2(os.path.join(artifacts_dir, "feature_columns.json"), os.path.join(serving_model_dir, "feature_columns.json"))
         print("✅ Model saved to MLflow for serving pipeline")
+        print(f"✅ Local serving bundle saved to {serving_model_dir}")
 
         # === Final Performance Summary ===
         print(f"\n⏱️  Performance Summary:")

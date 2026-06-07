@@ -25,27 +25,30 @@ Production Deployment:
 """
 
 import os
+import glob
 import pandas as pd
 import mlflow
 
 # === MODEL LOADING CONFIGURATION ===
-# IMPORTANT: This path is set during Docker container build
-# In development: uses local MLflow artifacts
-# In production: uses model copied to container at build time
-MODEL_DIR = "/app/model"
+# Prefer the exported local serving bundle, then the container bundle, then MLflow artifacts.
+LOCAL_MODEL_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "model"))
+MODEL_DIR = None
+model = None
+load_errors = []
 
-try:
-    # Load the trained XGBoost model in MLflow pyfunc format
-    # This ensures compatibility regardless of the underlying ML library
-    model = mlflow.pyfunc.load_model(MODEL_DIR)
-    print(f"✅ Model loaded successfully from {MODEL_DIR}")
-except Exception as e:
-    print(f"❌ Failed to load model from {MODEL_DIR}: {e}")
-    # Fallback for local development (OPTIONAL)
+for candidate_dir in ("/app/model", LOCAL_MODEL_DIR):
     try:
-        # Try loading from local MLflow tracking
-        import glob
-        local_model_paths = glob.glob("./mlruns/*/*/artifacts/model")
+        model = mlflow.pyfunc.load_model(candidate_dir)
+        MODEL_DIR = candidate_dir
+        print(f"✅ Model loaded successfully from {candidate_dir}")
+        break
+    except Exception as e:
+        load_errors.append(f"{candidate_dir}: {e}")
+
+if model is None:
+    try:
+        repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+        local_model_paths = glob.glob(os.path.join(repo_root, "mlruns", "*", "*", "artifacts", "model"))
         if local_model_paths:
             latest_model = max(local_model_paths, key=os.path.getmtime)
             model = mlflow.pyfunc.load_model(latest_model)
@@ -54,7 +57,9 @@ except Exception as e:
         else:
             raise Exception("No model found in local mlruns")
     except Exception as fallback_error:
-        raise Exception(f"Failed to load model: {e}. Fallback failed: {fallback_error}")
+        raise Exception(
+            f"Failed to load model from exported bundles. Errors: {load_errors}. Fallback failed: {fallback_error}"
+        )
 
 # === FEATURE SCHEMA LOADING ===
 # CRITICAL: Load the exact feature column order used during training
