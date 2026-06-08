@@ -12,6 +12,7 @@ This repository implements a churn prediction service and ML pipeline. It includ
 - Main code and app layout: [src/](src/)
 - Serving code: [src/serving/inference.py](src/serving/inference.py)
 - Model artifacts and tracked runs: [mlruns/](mlruns/)
+- HTML version: [README.html](README.html) — open in a browser for a rendered view of this documentation.
 
 ## Dataset
 

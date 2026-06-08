@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Churn Prediction Service</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #111118;
+    --surface2: #1a1a24;
+    --border: rgba(120,120,200,0.15);
+    --border2: rgba(120,120,200,0.28);
+    --accent: #7c6af7;
+    --accent2: #3ecfb2;
+    --accent3: #f76a6a;
+    --text: #e8e8f2;
+    --muted: #8888a8;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* ── GRID NOISE BACKGROUND ── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(124,106,247,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(124,106,247,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── GLOW ORBS ── */
+  .orb {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.18;
+    pointer-events: none;
+    z-index: 0;
+    animation: drift 14s ease-in-out infinite alternate;
+  }
+  .orb1 { width: 500px; height: 500px; background: var(--accent); top: -120px; left: -100px; animation-delay: 0s; }
+  .orb2 { width: 380px; height: 380px; background: var(--accent2); bottom: 10%; right: -80px; animation-delay: -5s; }
+  .orb3 { width: 280px; height: 280px; background: var(--accent3); top: 50%; left: 40%; animation-delay: -9s; }
+  @keyframes drift {
+    from { transform: translate(0, 0) scale(1); }
+    to   { transform: translate(30px, 20px) scale(1.08); }
+  }
+
+  /* ── WRAPPER ── */
+  .wrap { position: relative; z-index: 1; max-width: 860px; margin: 0 auto; padding: 0 1.5rem 6rem; }
+
+  /* ── HERO ── */
+  .hero {
+    padding: 5rem 0 3.5rem;
+    text-align: center;
+    animation: fadeUp 0.8s ease both;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--accent2); background: rgba(62,207,178,0.08);
+    border: 1px solid rgba(62,207,178,0.22); border-radius: 50px;
+    padding: 5px 14px; margin-bottom: 1.6rem;
+  }
+  .badge-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent2); animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.7)} }
+  .hero h1 {
+    font-family: var(--mono); font-size: clamp(2rem, 5vw, 3.4rem); font-weight: 700;
+    line-height: 1.15; letter-spacing: -0.02em;
+    background: linear-gradient(135deg, #e8e8f2 0%, var(--accent) 50%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    margin-bottom: 1rem;
+  }
+  .hero p { color: var(--muted); font-size: 1.05rem; max-width: 560px; margin: 0 auto 2rem; }
+  .hero-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 10px 22px; border-radius: 8px; font-size: 14px; font-weight: 500;
+    text-decoration: none; transition: transform 0.18s, box-shadow 0.18s;
+    cursor: pointer;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn-primary {
+    background: var(--accent); color: #fff;
+    box-shadow: 0 0 0 0 rgba(124,106,247,0.5);
+    animation: glow-btn 2.5s ease-in-out infinite;
+  }
+  @keyframes glow-btn { 0%,100%{box-shadow:0 0 0 0 rgba(124,106,247,0)} 50%{box-shadow:0 0 20px 4px rgba(124,106,247,0.35)} }
+  .btn-secondary {
+    background: transparent; color: var(--text);
+    border: 1px solid var(--border2);
+  }
+  .btn-secondary:hover { background: var(--surface2); }
+  .btn svg { width: 16px; height: 16px; }
+
+  /* ── STAT STRIP ── */
+  .stats {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1px; background: var(--border);
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
+    margin: 2.5rem 0; animation: fadeUp 0.8s 0.15s ease both;
+  }
+  .stat {
+    background: var(--surface); padding: 1.2rem 1rem; text-align: center;
+    transition: background 0.2s;
+  }
+  .stat:hover { background: var(--surface2); }
+  .stat-val { font-family: var(--mono); font-size: 1.5rem; font-weight: 700; color: var(--accent); }
+  .stat-lbl { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+  /* ── SECTION ── */
+  section { margin: 3.5rem 0; animation: fadeUp 0.7s ease both; }
+  section:nth-child(3) { animation-delay: 0.05s; }
+  section:nth-child(4) { animation-delay: 0.1s; }
+  section:nth-child(5) { animation-delay: 0.15s; }
+  section:nth-child(6) { animation-delay: 0.2s; }
+  section:nth-child(7) { animation-delay: 0.25s; }
+
+  .section-label {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin-bottom: 0.5rem;
+  }
+  h2 { font-family: var(--mono); font-size: 1.3rem; font-weight: 700; margin-bottom: 1rem; }
+  h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text); }
+
+  @keyframes fadeUp { from{opacity:0;transform:translateY(22px)} to{opacity:1;transform:translateY(0)} }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.25rem 1.4rem;
+    transition: border-color 0.2s, transform 0.2s;
+  }
+  .card:hover { border-color: rgba(124,106,247,0.35); transform: translateY(-2px); }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+
+  /* ── ARCHITECTURE PIPELINE ── */
+  .pipeline {
+    display: flex; align-items: center; gap: 0; overflow-x: auto;
+    padding: 1.5rem; background: var(--surface);
+    border: 1px solid var(--border); border-radius: 12px;
+  }
+  .pipe-step {
+    display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+    min-width: 110px; gap: 8px;
+  }
+  .pipe-icon {
+    width: 44px; height: 44px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; position: relative;
+  }
+  .pipe-icon::after {
+    content: ''; position: absolute; inset: -1px;
+    border-radius: 11px; z-index: -1;
+    animation: icon-glow 3s ease-in-out infinite alternate;
+  }
+  @keyframes icon-glow { from{box-shadow:0 0 0 0 transparent} to{box-shadow:0 0 12px 2px currentColor} }
+  .pipe-lbl { font-size: 11px; text-align: center; color: var(--muted); }
+  .pipe-arrow {
+    font-family: var(--mono); font-size: 18px; color: var(--border2);
+    flex-shrink: 0; padding: 0 4px; animation: arrow-flash 2s ease-in-out infinite;
+  }
+  @keyframes arrow-flash { 0%,100%{color:var(--border2)} 50%{color:var(--accent)} }
+
+  /* ── CODE BLOCK ── */
+  pre {
+    background: #0d0d14; border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.3rem; overflow-x: auto;
+    font-family: var(--mono); font-size: 13px; line-height: 1.65;
+    position: relative;
+  }
+  pre .cmt { color: #555570; }
+  pre .cmd { color: var(--accent2); }
+  pre .arg { color: #f0c98a; }
+  pre .str { color: var(--accent3); }
+  .code-label {
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  /* ── CODE TABS ── */
+  .tab-bar { display: flex; gap: 2px; margin-bottom: 0; }
+  .tab {
+    font-family: var(--mono); font-size: 12px; padding: 7px 16px;
+    border-radius: 8px 8px 0 0; border: 1px solid var(--border);
+    border-bottom: none; background: var(--surface2);
+    color: var(--muted); cursor: pointer; transition: color 0.15s, background 0.15s;
+  }
+  .tab.active { background: #0d0d14; color: var(--accent2); border-color: var(--border2); }
+  .tab-pre { border-radius: 0 10px 10px 10px; }
+
+  /* ── CI STEPS ── */
+  .ci-steps { display: flex; flex-direction: column; gap: 0; }
+  .ci-step {
+    display: flex; align-items: flex-start; gap: 14px;
+    padding: 0.85rem 1.1rem; border-left: 2px solid var(--border);
+    margin-left: 20px; position: relative; transition: border-color 0.2s;
+  }
+  .ci-step:hover { border-color: var(--accent); }
+  .ci-step::before {
+    content: attr(data-n);
+    position: absolute; left: -13px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    font-family: var(--mono); font-size: 10px; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .ci-step:hover::before { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .ci-step-icon { font-size: 18px; flex-shrink: 0; margin-top: 2px; }
+  .ci-step-body h3 { font-size: 14px; margin-bottom: 2px; }
+  .ci-step-body p { font-size: 13px; color: var(--muted); }
+
+  /* ── DATASET TABLE ── */
+  .ds-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .ds-table th { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); padding: 8px 12px; border-bottom: 1px solid var(--border); text-align: left; }
+  .ds-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+  .ds-table tr:last-child td { border-bottom: none; }
+  .ds-table tr:hover td { background: var(--surface2); }
+  .tag {
+    display: inline-block; font-family: var(--mono); font-size: 11px;
+    padding: 2px 8px; border-radius: 4px;
+    background: rgba(124,106,247,0.12); color: var(--accent);
+    border: 1px solid rgba(124,106,247,0.22);
+  }
+  .tag-green { background: rgba(62,207,178,0.1); color: var(--accent2); border-color: rgba(62,207,178,0.22); }
+
+  /* ── FILE TREE ── */
+  .tree { font-family: var(--mono); font-size: 13px; line-height: 2; }
+  .tree-line { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+  .tree-line:hover { color: var(--accent2); }
+  .tree-icon { font-size: 14px; flex-shrink: 0; }
+  .tree-indent { padding-left: 20px; }
+  .tree-indent2 { padding-left: 40px; }
+  .tree-desc { font-size: 12px; color: var(--muted); margin-left: auto; }
+
+  /* ── LINKS ── */
+  a { color: var(--accent); text-decoration: none; transition: color 0.15s; }
+  a:hover { color: var(--accent2); text-decoration: underline; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center; padding: 2.5rem 0; border-top: 1px solid var(--border);
+    margin-top: 4rem; color: var(--muted); font-size: 13px;
+  }
+  footer a { color: var(--muted); }
+  footer a:hover { color: var(--accent2); }
+
+  /* ── SCROLLBAR ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<div class="wrap">
+
+  <!-- ── HERO ── -->
+  <div class="hero">
+    <div class="badge">
+      <span class="badge-dot"></span>
+      ML · FastAPI · MLflow · Docker
+    </div>
+    <h1>Churn Prediction<br>Service</h1>
+    <p>End-to-end machine learning pipeline — from feature engineering to containerised production serving with automated CI/CD.</p>
+    <div class="hero-btns">
+      <a class="btn btn-primary" href="https://hub.docker.com/repository/docker/00pizzalover00/churn-service/tags" target="_blank">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M8 11h3v3H8zm5 0h3v3h-3zm0-5h3v3h-3zm-5 0h3v3H8zM3 11h3v3H3zm10-5V2"/></svg>
+        Docker Hub
+      </a>
+      <a class="btn btn-secondary" href="#quickstart">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        Quick Start
+      </a>
+      <a class="btn btn-secondary" href="#structure">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18M3 12h18M3 17h18"/></svg>
+        Docs
+      </a>
+    </div>
+  </div>
+
+  <!-- ── STATS ── -->
+  <div class="stats">
+    <div class="stat"><div class="stat-val">7,043</div><div class="stat-lbl">Customer Records</div></div>
+    <div class="stat"><div class="stat-val">21</div><div class="stat-lbl">Feature Columns</div></div>
+    <div class="stat"><div class="stat-val">FastAPI</div><div class="stat-lbl">Serving Layer</div></div>
+    <div class="stat"><div class="stat-val">MLflow</div><div class="stat-lbl">Experiment Tracking</div></div>
+    <div class="stat"><div class="stat-val">Docker</div><div class="stat-lbl">Containerised</div></div>
+  </div>
+
+  <!-- ── ARCHITECTURE ── -->
+  <section>
+    <div class="section-label">// architecture</div>
+    <h2>System Overview</h2>
+    <div class="pipeline">
+      <div class="pipe-step">
+        <div class="pipe-icon" style="background:rgba(124,106,247,0.15);color:var(--accent)">🗄️</div>
+        <div class="pipe-lbl">GitHub<br>Source</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon" style="background:rgba(62,207,178,0.12);color:var(--accent2)">⚙️</div>
+        <div class="pipe-lbl">GitHub<br>Actions CI</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon" style="background:rgba(247,106,106,0.12);color:var(--accent3)">🐳</div>
+        <div class="pipe-lbl">Docker<br>Build</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon" style="background:rgba(124,106,247,0.15);color:var(--accent)">📦</div>
+        <div class="pipe-lbl">Docker<br>Hub</div>
+      </div>
+      <div class="pipe-arrow">→</div>
+      <div class="pipe-step">
+        <div class="pipe-icon" style="background:rgba(62,207,178,0.12);color:var(--accent2)">🚀</div>
+        <div class="pipe-lbl">Production<br>Deploy</div>
+      </div>
+    </div>
+    <div style="margin-top:1rem;font-size:13px;color:var(--muted)">
+      Compatible with Docker Compose, Kubernetes, AWS ECS, Azure ACI, and any container platform.
+    </div>
+  </section>
+
+  <!-- ── DATASET ── -->
+  <section>
+    <div class="section-label">// dataset</div>
+    <h2>Telco Customer Churn</h2>
+    <p style="color:var(--muted);margin-bottom:1rem">Kaggle — <a href="https://www.kaggle.com/datasets/blastchar/telco-customer-churn" target="_blank">blastchar/telco-customer-churn</a></p>
+    <div class="card" style="overflow:auto">
+      <table class="ds-table">
+        <thead>
+          <tr><th>Category</th><th>Columns</th><th>Type</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Identity</td><td><code>customerID</code></td><td><span class="tag">string</span></td></tr>
+          <tr><td>Demographics</td><td><code>gender, SeniorCitizen, Partner, Dependents</code></td><td><span class="tag">categorical</span></td></tr>
+          <tr><td>Account</td><td><code>tenure, Contract, PaperlessBilling, PaymentMethod</code></td><td><span class="tag">mixed</span></td></tr>
+          <tr><td>Services</td><td><code>PhoneService, MultipleLines, InternetService, OnlineSecurity…</code></td><td><span class="tag">categorical</span></td></tr>
+          <tr><td>Charges</td><td><code>MonthlyCharges, TotalCharges</code></td><td><span class="tag">numeric</span></td></tr>
+          <tr><td>Target</td><td><code>Churn</code></td><td><span class="tag tag-green">binary Yes/No</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:0.75rem;font-size:13px;color:var(--muted)">⚠️ <code>TotalCharges</code> may contain blank entries — preprocessing includes type conversion, imputation, and categorical encoding.</div>
+  </section>
+
+  <!-- ── QUICK START ── -->
+  <section id="quickstart">
+    <div class="section-label">// quick start</div>
+    <h2>Get Running in 60 Seconds</h2>
+
+    <div style="margin-bottom:1.2rem">
+      <div class="code-label">▸ pull &amp; run from docker hub</div>
+      <pre><span class="cmt"># Pull the latest image</span>
+<span class="cmd">docker</span> <span class="arg">pull</span> <span class="str">00pizzalover00/churn-service:latest</span>
+
+<span class="cmt"># Run on port 8000</span>
+<span class="cmd">docker</span> <span class="arg">run</span> --rm -p 8000:8000 <span class="str">00pizzalover00/churn-service:latest</span></pre>
+    </div>
+
+    <div style="margin-bottom:1.2rem">
+      <div class="code-label">▸ local development</div>
+      <pre><span class="cmt"># Create virtual environment</span>
+<span class="cmd">python</span> -m venv .venv &amp;&amp; source .venv/bin/activate
+
+<span class="cmt"># Install dependencies</span>
+<span class="cmd">pip</span> install -r requirements.txt
+
+<span class="cmt"># Run tests</span>
+<span class="cmd">pytest</span> -q
+
+<span class="cmt"># Start the API (interactive docs → http://localhost:8000/docs)</span>
+<span class="cmd">uvicorn</span> src.app.main:app --reload --host 0.0.0.0 --port 8000</pre>
+    </div>
+
+    <div>
+      <div class="code-label">▸ build locally with docker</div>
+      <pre><span class="cmd">docker</span> build -t local-churn-service:dev .
+<span class="cmd">docker</span> run --rm -p 8000:8000 local-churn-service:dev</pre>
+    </div>
+  </section>
+
+  <!-- ── CI/CD ── -->
+  <section>
+    <div class="section-label">// ci/cd pipeline</div>
+    <h2>What Happens on Push</h2>
+    <div class="card">
+      <div class="ci-steps">
+        <div class="ci-step" data-n="1">
+          <div class="ci-step-icon">📥</div>
+          <div class="ci-step-body"><h3>Checkout</h3><p>Repository code is checked out in a fresh runner.</p></div>
+        </div>
+        <div class="ci-step" data-n="2">
+          <div class="ci-step-icon">🐍</div>
+          <div class="ci-step-body"><h3>Setup Python</h3><p>Environment created and <code>requirements.txt</code> dependencies installed.</p></div>
+        </div>
+        <div class="ci-step" data-n="3">
+          <div class="ci-step-icon">🧪</div>
+          <div class="ci-step-body"><h3>Run Tests</h3><p><code>pytest</code> runs unit and integration tests — failure blocks merge.</p></div>
+        </div>
+        <div class="ci-step" data-n="4">
+          <div class="ci-step-icon">🔍</div>
+          <div class="ci-step-body"><h3>Lint &amp; Static Checks</h3><p>Optional linting stage validates code quality.</p></div>
+        </div>
+        <div class="ci-step" data-n="5">
+          <div class="ci-step-icon">🐳</div>
+          <div class="ci-step-body"><h3>Docker Build</h3><p>Image built and tagged (<code>latest</code> + commit/semver tag).</p></div>
+        </div>
+        <div class="ci-step" data-n="6">
+          <div class="ci-step-icon">🔐</div>
+          <div class="ci-step-body"><h3>Authenticate</h3><p>Docker Hub login via repo secrets <code>DOCKER_USERNAME</code> / <code>DOCKERHUB_TOKEN</code>.</p></div>
+        </div>
+        <div class="ci-step" data-n="7">
+          <div class="ci-step-icon">🚢</div>
+          <div class="ci-step-body"><h3>Push to Docker Hub</h3><p>Image published to <a href="https://hub.docker.com/repository/docker/00pizzalover00/churn-service/tags" target="_blank"><code>00pizzalover00/churn-service</code></a>.</p></div>
+        </div>
+        <div class="ci-step" data-n="8">
+          <div class="ci-step-icon">📊</div>
+          <div class="ci-step-body"><h3>Artifact Upload</h3><p>Optionally saves model files to MLflow, remote storage, or GitHub Releases.</p></div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:0.75rem;font-size:13px;color:var(--muted)">
+      Workflow file: <a href=".github/workflows/ci.yml"><code>.github/workflows/ci.yml</code></a>
+    </div>
+  </section>
+
+  <!-- ── MODEL & MLFLOW ── -->
+  <section>
+    <div class="section-label">// model artifacts</div>
+    <h2>MLflow &amp; Feature Alignment</h2>
+    <div class="card-grid">
+      <div class="card">
+        <h3>📁 mlruns/</h3>
+        <p style="color:var(--muted);font-size:13px">Tracked runs and saved models for local MLflow. Set <code>MLFLOW_TRACKING_URI</code> for remote tracking.</p>
+      </div>
+      <div class="card">
+        <h3>📋 feature_columns.json</h3>
+        <p style="color:var(--muted);font-size:13px">Stored under <code>artifacts/</code> and <code>src/serving/model/</code> — aligns new requests with the model's expected input schema.</p>
+      </div>
+      <div class="card">
+        <h3>🔬 Serving</h3>
+        <p style="color:var(--muted);font-size:13px">FastAPI app reads the serialised model + feature columns JSON. See <a href="src/serving/inference.py"><code>src/serving/inference.py</code></a>.</p>
+      </div>
+      <div class="card">
+        <h3>☁️ Remote</h3>
+        <p style="color:var(--muted);font-size:13px">Set <code>MLFLOW_TRACKING_URI</code> and <code>MLFLOW_S3_BUCKET</code> for cloud artifact storage in CI.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── PROJECT STRUCTURE ── -->
+  <section id="structure">
+    <div class="section-label">// project structure</div>
+    <h2>File Layout</h2>
+    <div class="card">
+      <div class="tree">
+        <div class="tree-line"><span class="tree-icon">📦</span> <strong>churn-service/</strong></div>
+        <div class="tree-indent">
+          <div class="tree-line"><span class="tree-icon">📁</span> src/ <span class="tree-desc">main source code</span></div>
+          <div class="tree-indent2">
+            <div class="tree-line"><span class="tree-icon">📂</span> data/ <span class="tree-desc">loading &amp; preprocessing</span></div>
+            <div class="tree-line"><span class="tree-icon">📂</span> features/ <span class="tree-desc">feature engineering</span></div>
+            <div class="tree-line"><span class="tree-icon">📂</span> models/ <span class="tree-desc">training, tuning, eval</span></div>
+            <div class="tree-line"><span class="tree-icon">📂</span> serving/ <span class="tree-desc">inference &amp; model serving</span></div>
+          </div>
+          <div class="tree-line"><span class="tree-icon">📁</span> app/ <span class="tree-desc">entry points</span></div>
+          <div class="tree-line"><span class="tree-icon">📁</span> artifacts/ <span class="tree-desc">feature_columns.json</span></div>
+          <div class="tree-line"><span class="tree-icon">📁</span> mlruns/ <span class="tree-desc">MLflow metadata &amp; models</span></div>
+          <div class="tree-line"><span class="tree-icon">📁</span> tests/ <span class="tree-desc">pytest test cases</span></div>
+          <div class="tree-line"><span class="tree-icon">📄</span> requirements.txt</div>
+          <div class="tree-line"><span class="tree-icon">🐳</span> Dockerfile</div>
+          <div class="tree-line"><span class="tree-icon">⚙️</span> .github/workflows/ci.yml</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── CONTRIBUTING ── -->
+  <section>
+    <div class="section-label">// contributing</div>
+    <h2>How to Contribute</h2>
+    <div style="margin-bottom:1rem">
+      <pre><span class="cmt"># Create a feature branch</span>
+<span class="cmd">git</span> checkout -b <span class="str">feature/your-feature</span>
+
+<span class="cmt"># Run tests before opening a PR</span>
+<span class="cmd">pytest</span> tests/ -q</pre>
+    </div>
+    <div class="card-grid">
+      <div class="card"><h3>🌿 Branch</h3><p style="color:var(--muted);font-size:13px">One branch per feature or bugfix. Keep PRs focused and reviewable.</p></div>
+      <div class="card"><h3>✅ Tests</h3><p style="color:var(--muted);font-size:13px">Write tests for new functionality. CI blocks merges on test failures.</p></div>
+      <div class="card"><h3>🔒 Secrets</h3><p style="color:var(--muted);font-size:13px">Never commit credentials. Use GitHub Actions secrets or your cloud secret manager.</p></div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer>
+    <p style="margin-bottom:6px">Maintained by <a href="https://hub.docker.com/u/00pizzalover00" target="_blank">00pizzalover00</a> · Open source — feel free to fork and adapt.</p>
+    <p>Dataset: <a href="https://www.kaggle.com/datasets/blastchar/telco-customer-churn" target="_blank">Kaggle Telco Customer Churn</a></p>
+  </footer>
+
+</div>
+</body>
+</html>
