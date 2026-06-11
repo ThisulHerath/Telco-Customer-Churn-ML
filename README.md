@@ -8,6 +8,7 @@ This repository implements a churn prediction service and ML pipeline. It includ
 
 - Docker image: `00pizzalover00/churn-service`
 - Docker tags: https://hub.docker.com/repository/docker/00pizzalover00/churn-service/tags
+- Project UI: http://13.201.31.126:8000/ui/
 - CI workflow: [.github/workflows/ci.yml](.github/workflows/ci.yml)
 - Main code and app layout: [src/](src/)
 - Serving code: [src/serving/inference.py](src/serving/inference.py)
